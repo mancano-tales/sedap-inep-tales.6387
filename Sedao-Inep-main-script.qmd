@@ -29,6 +29,9 @@ Os pacotes na sala do INEP não podem ser baixados via CRAN, ao invés disso ele
 
 #Código de instalação dos pacotes no R do Sedap
 
+#Como não é o caso aqui, vou chamar os pacotes que utilizo normalmente
+library(tidyverse)
+
 ```
 
 Depois de instalar os pacotes podemos finalmente ler as bases de dados usando a função readr
@@ -40,5 +43,16 @@ readr::read_delim("1. Bases Enem\ENEM_2010.csv", delim=";")
 
 ```
 
+## Tratamento e cruzamento das bases de dados
 
+Após realizar a leitura da primeira base de dados, seja do Censo da Educação Básica (doravante CEB) ou do Censo da Educação Superio (CES) é necessário removar a maioria das colunas (que não tem uso para a pesquisa e aumentam muito o peso do dataset) e realizar o merge através da função *left_join*
+
+```{R}
+
+merge()
+left_join()
+join_by()
+left_join()
+
+```
 
