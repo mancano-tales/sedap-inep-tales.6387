@@ -2,7 +2,7 @@
 title: "Sedap-INEP - Projeto tales.6387"
 format: html
 ---
-
+  
 Este script tem como objetivo acompanhar, testar e documentar, do lado de fora da sala segura do INEP, o desenvolvimento do código que está sendo elaborado internamente.
 
 A intenção é que, caso tudo transcorra como previsto, possamos extrair o script final — atualmente sendo desenvolvido em um documento Quarto dentro da sala — para uso e replicação externa.
@@ -46,8 +46,8 @@ readr::read_delim("1. Bases Enem\ENEM_2010.csv", delim=";")
 ## Tratamento e cruzamento das bases de dados
 
 Após realizar a leitura da primeira base de dados, seja do Censo da Educação Básica (doravante CEB) ou do Censo da Educação Superio (CES) é necessário removar a maioria das colunas (que não tem uso para a pesquisa e aumentam muito o peso do dataset) e realizar o merge através da função *left_join*
-
-```{R}
+  
+  ```{R}
 
 merge()
 left_join()
