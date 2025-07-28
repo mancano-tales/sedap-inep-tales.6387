@@ -1,0 +1,9 @@
+---
+title: "Sedap-INEP - Projeto tales.6387"
+format: html
+---
+
+Este *Script* visa acompanhar, testar e documentar, do lado de fora da sala do INEP, o que está sendo feito com o código dentro da sala.
+
+Se tudo correr bem, pretendemos extrair o Script, atualmente também sendo feito em um documento Quarto dentro da sala.
+
