@@ -1,0 +1,1 @@
+In this directory, there are two Stata syntax files that serve to open the datasets initially generated in SAS. These syntax files execute data processing and merging tasks, culminating in the export of the dataset to a .csv format. This conversion facilitates the generation of article results using R, presented in the next folder.

@@ -2,7 +2,7 @@
 title: "Sedap-INEP - Projeto tales.6387"
 format: html
 ---
-  
+
 Este script tem como objetivo acompanhar, testar e documentar, do lado de fora da sala segura do INEP, o desenvolvimento do código que está sendo elaborado internamente.
 
 A intenção é que, caso tudo transcorra como previsto, possamos extrair o script final — atualmente sendo desenvolvido em um documento Quarto dentro da sala — para uso e replicação externa.
@@ -16,11 +16,9 @@ O Script se inicia na sala do Sedap com: 1. Definição do Diretório de Trabalh
 Depis demos que verificar se os pacotes necessário s do tidyverse foram instalados, se não é imporssível ler os bancos de dados CSV
 
 ```{R}
-
 getwd()
 setwd("T:/")
 installed.packages()
-
 ```
 
 Os pacotes na sala do INEP não podem ser baixados via CRAN, ao invés disso eles são disponibilziados em arquivos diretamente no computador, que, no entanto, ainda não tive acesso.
@@ -37,15 +35,34 @@ library(tidyverse)
 Depois de instalar os pacotes podemos finalmente ler as bases de dados usando a função readr
 
 ```{R}
-
 readr::read_delim("1. Bases Enem\ENEM_2010.csv", delim=";")
 #Essa forma de leitura se repete para todas as outras bases
-
 ```
 
 ## Tratamento e cruzamento das bases de dados
 
-Após realizar a leitura da primeira base de dados, seja do Censo da Educação Básica (doravante CEB) ou do Censo da Educação Superio (CES) é necessário removar a maioria das colunas (que não tem uso para a pesquisa e aumentam muito o peso do dataset) e realizar o merge através da função *left_join*
+Após realizar a leitura da primeira base de dados, seja do Censo da Educação Básica (doravante CEB) ou do Censo da Educação Superio (CES) é necessário removar a maioria das colunas (que não tem uso para a pesquisa e aumentam muito o peso do dataset) e realizar o merge através da função *left_join*.
+
+
+### Censo Escolar
+
+Vamos iniciar carregando a base do CEB e excluindo as colunas que não nos interessam:
+  
+```{R}
+readr::read_delim("1. Bases CEB\CEB_2009.csv", delim=";")
+#Essa forma de leitura se repete para todas as outras bases
+```
+
+
+
+
+
+
+
+
+
+
+  
   
   ```{R}
 
