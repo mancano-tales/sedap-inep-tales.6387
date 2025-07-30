@@ -49,8 +49,57 @@ Após realizar a leitura da primeira base de dados, seja do Censo da Educação 
 Vamos iniciar carregando a base do CEB e excluindo as colunas que não nos interessam:
   
 ```{R}
-readr::read_delim("1. Bases CEB\CEB_2009.csv", delim=";")
+colnamesCEB_2009 <- readr::read_delim("1. Bases CEB\CEB_2009.csv", delim=";", n_max = 0)
+print(colnamesCEB_2009)
+
+
+colunas_desejadas <- c("ID_ALUNO", "TP_COR_RACA")
+
+# Lê somente essas colunas
+dados <- fread("arquivo.csv", select = colunas_desejadas)
+
+
 #Essa forma de leitura se repete para todas as outras bases
+```
+
+
+
+
+library(readr)
+
+nomes <- names(read_csv("arquivo.csv", n_max = 0))
+print(nomes)
+
+
+```{r}
+
+
+# Supõe que os dados já estejam lidos em um data frame chamado bas_situacao
+censo_1 <- bas_situacao %>%
+  filter(
+    NU_ANO_CENSO %in% 2009:2012,
+    IN_CONCLUINTE == 1,
+    TP_SITUACAO %in% c(5, 9),
+    TP_ETAPA_ENSINO %in% c(27, 28, 29, 32, 33, 34, 37, 38),
+    between(NU_IDADE, 15, 29)
+  ) %>%
+  select(
+    NU_ANO_CENSO,
+    CO_PESSOA_FISICA,
+    CHAVE_UNICA,
+    NU_IDADE,
+    TP_SEXO,
+    TP_COR_RACA,
+    CO_UF,
+    CO_MUNICIPIO,
+    CO_ENTIDADE,
+    TP_DEPENDENCIA,
+    TP_LOCALIZACAO,
+    IN_PROFISSIONALIZANTE,
+    TP_ETAPA_ENSINO,
+    TP_SITUACAO
+  )
+
 ```
 
 
