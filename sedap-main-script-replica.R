@@ -35,7 +35,8 @@ library(tidyverse)
 Depois de instalar os pacotes podemos finalmente ler as bases de dados usando a função readr
 
 ```{R}
-readr::read_delim("1. Bases Enem\ENEM_2010.csv", delim=";")
+ENEM_2010 <- readr::read_delim("1. Bases Enem\ENEM_2010.csv", delim=";", n_max = 0)
+colnames()
 #Essa forma de leitura se repete para todas as outras bases
 ```
 
@@ -65,10 +66,6 @@ dados <- fread("arquivo.csv", select = colunas_desejadas)
 
 
 
-library(readr)
-
-nomes <- names(read_csv("arquivo.csv", n_max = 0))
-print(nomes)
 
 
 ```{r}
@@ -113,12 +110,155 @@ censo_1 <- bas_situacao %>%
 
   
   
-  ```{R}
+```{R}
 
 merge()
 left_join()
 join_by()
 left_join()
 
+```
+
+--- Código Senkevicks
+
+
+```{r}
+library(tidyverse)
+
+# Configurações iniciais
+rm(list = ls())
+options(readr.show_col_types = FALSE)
+
+# Definir diretório
+data_dir <- "inserir o caminho das bases"
+
+##############################
+# CENSO ESCOLAR + ENEM
+
+# Importar e processar dados Censo + ENEM
+ceb_egressos_2012 <- read_csv(file.path(data_dir, "censo_enem.csv")) %>% 
+  # Filtrar apenas 2012
+  filter(nu_ano_censo == 2012) %>% 
+  # Tratar raça/cor
+  mutate(
+    raca = coalesce(iein_co_cor_raca, tp_cor_raca),
+    raca = if_else(iein_co_cor_raca == "6", tp_cor_raca, raca)
+  ) %>% 
+  # Calcular média das notas
+  mutate(
+    media = rowMeans(across(c(iere_vl_nota_ch, iere_vl_nota_cn, 
+                           iere_vl_nota_lc, iere_vl_nota_mt)),
+    .keep = "unused"
+  ) %>% 
+  # Calcular renda per capita
+  mutate(
+    pm_sm = case_match(
+      iequ_questao_06,
+      "A" ~ 0, "B" ~ 1, "C" ~ 1.25, "D" ~ 1.75, "E" ~ 2.25,
+      "F" ~ 2.75, "G" ~ 3.5, "H" ~ 4.5, "I" ~ 5.5, "J" ~ 6.5,
+      "K" ~ 7.5, "L" ~ 8.5, "M" ~ 9.5, "N" ~ 11, "O" ~ 13.5,
+      "P" ~ 17.5, "Q" ~ 20,
+      .default = NA_real_
+    ),
+    rfpc = pm_sm / as.numeric(iequ_questao_05)
+  ) %>% 
+  # Escolaridade parental
+  mutate(
+    escp = pmax(
+      as.numeric(iequ_questao_02), 
+      as.numeric(iequ_questao_01), 
+      na.rm = TRUE
+    )
+  ) %>% 
+  # Renomear e selecionar variáveis
+  rename(
+    trabalho = iequ_questao_26,
+    fundprivado = iequ_questao_42,
+    ano_enem = iein_nu_ano
+  ) %>% 
+  select(-c(iein_co_inscricao, iequ_questao_47, iequ_questao_01, iequ_questao_02,
+            iequ_questao_05, iequ_questao_06, tp_cor_raca, iein_co_cor_raca))
+
+# Salvar dados
+write_rds(ceb_egressos_2012, file.path(data_dir, "ceb_egressos_2012.rds"))
+
+##############################
+# CENSO DA EDUCAÇÃO SUPERIOR
+
+# Função para processamento dos dados CES
+process_ces_data <- function(file_path, year) {
+  # Definir labels para fatores
+  categ_labels <- c("Pública", "Privada")
+  grau_labels <- c("NA", "Bacharelado", "Licenciatura", "Tecnológico")
+  turno_labels <- c("Diurno", "Noturno", "EaD")
+  situacao_labels <- c("Cursando", "Matrícula trancada", "Desvinculado do curso",
+                      "Transferido para curso da mesma IES", "Formado", "Falecido")
+  
+  read_csv(file_path) %>% 
+    # Filtrar e selecionar colunas
+    filter(tp_nivel_academico != 2) %>% 
+    select(-c(co_aluno_curso, tp_cor_raca, tp_organizacao_academica,
+             tp_nivel_academico, co_area_geral, co_area_especifica,
+             co_area_detalhada, nu_ano_censo)) %>% 
+    # Processar variáveis
+    rename(co_ocde = co_rotulo) %>% 
+    mutate(
+      # Categoria administrativa
+      categ = if_else(tp_categoria_administrativa %in% 1:3, 1L, 2L),
+      categ = factor(categ, levels = 1:2, labels = categ_labels),
+      
+      # Turno
+      turno = case_when(
+        is.na(tp_turno) & tp_modalidade_ensino == 2 ~ 3L,
+        tp_turno %in% c(1, 2, 4) ~ 1L,
+        tp_turno == 3 ~ 2L,
+        TRUE ~ NA_integer_
+      ),
+      turno = factor(turno, levels = 1:3, labels = turno_labels),
+      
+      # Grau acadêmico
+      grau = replace_na(tp_grau_academico, 0),
+      grau = factor(grau, levels = 0:3, labels = grau_labels),
+      
+      # Situação
+      sit = factor(tp_situacao, levels = 2:7, labels = situacao_labels),
+      
+      # IES e curso
+      ies = co_ies,
+      curso = co_curso,
+      
+      # Formatar código do aluno
+      co_aluno = as.character(co_aluno)
+    ) %>% 
+    # Selecionar e ordenar colunas
+    select(co_aluno, chave_unica, categ, ies, grau, turno, 
+           curso, co_ocde, sit) %>% 
+    # Salvar dados
+    {write_rds(., file.path(data_dir, str_glue("ces_aluno_{year}.rds"))); .}
+}
+
+# Processar cada ano
+walk2(
+  list.files(data_dir, pattern = "aluno_\\d{2}\\.csv", full.names = TRUE),
+  str_extract(list.files(data_dir, pattern = "aluno_\\d{2}\\.csv"), "\\d{2}"),
+  process_ces_data
+)
+
+############################################
+# TRATAMENTO FINAL DAS BASES 2013-2017
+
+# Função para tratamento final
+final_processing <- function(year) {
+  read_rds(file.path(data_dir, str_glue("ces_aluno_{year}.rds"))) %>% 
+    # Filtrar casos com chave única
+    filter(chave_unica != "") %>% 
+    # Remover duplicatas completas
+    distinct(co_aluno, ies, grau, turno, curso, sit, .keep_all = TRUE) %>% 
+    # Salvar dados finais
+    write_rds(file.path(data_dir, str_glue("ces_aluno_matching_{year}.rds")))
+}
+
+# Aplicar a todos os anos
+walk(c("13", "14", "15", "16", "17"), final_processing)
 ```
 
