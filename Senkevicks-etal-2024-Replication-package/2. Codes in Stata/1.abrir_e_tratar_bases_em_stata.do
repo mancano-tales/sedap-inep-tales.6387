@@ -349,3 +349,160 @@ save "${output}\2.Bases_finais\ces_aluno_matching_`year'",replace
 
 * Fim
 ***
+
+********* Conversão para o R, por TMancano ************
+
+# Configuração inicial
+rm(list = ls()) # Limpar ambiente
+options(width = 120) # Definir largura do output
+set.seed(123) # Para reprodutibilidade
+
+# Definir diretório (substitua pelo seu caminho)
+data_dir <- "inserir_o_caminho_das_bases"
+
+##############################
+### CENSO ESCOLAR + ENEM ###
+
+# Importar base de dados
+library(data.table)
+censo_enem <- fread(file.path(data_dir, "censo_enem.csv"))
+
+# Manter apenas egressos do ensino médio de 2012
+censo_enem <- censo_enem[nu_ano_censo == 2012, ]
+
+# Usar a cor/raça do Enem e complementar com Censo se necessário
+censo_enem[, raca := iein_co_cor_raca]
+censo_enem[is.na(iein_co_cor_raca) | iein_co_cor_raca == 6, raca := tp_cor_raca]
+censo_enem[, c("tp_cor_raca", "iein_co_cor_raca") := NULL]
+
+# Calcular média nas quatro provas objetivas do Enem
+provas <- c("iere_vl_nota_ch", "iere_vl_nota_cn", "iere_vl_nota_lc", "iere_vl_nota_mt")
+censo_enem[, media := rowMeans(.SD, na.rm = TRUE), .SDcols = provas]
+censo_enem[, (provas) := NULL]
+
+# Calcular renda domiciliar per capita
+renda_map <- c("A"=0, "B"=1, "C"=1.25, "D"=1.75, "E"=2.25, "F"=2.75, 
+               "G"=3.5, "H"=4.5, "I"=5.5, "J"=6.5, "K"=7.5, "L"=8.5, 
+               "M"=9.5, "N"=11, "O"=13.5, "P"=17.5, "Q"=20)
+
+censo_enem[, pm_sm := renda_map[iequ_questao_06]]
+censo_enem[, rfpc := pm_sm / iequ_questao_05]
+censo_enem[, c("iequ_questao_05", "iequ_questao_06") := NULL]
+
+# Computar maior escolaridade parental
+censo_enem[, escp := pmax(iequ_questao_01, iequ_questao_02, na.rm = TRUE)]
+censo_enem[, c("iequ_questao_01", "iequ_questao_02") := NULL]
+
+# Renomear outras variáveis
+setnames(censo_enem, 
+         c("iequ_questao_26", "iequ_questao_42", "iein_nu_ano"),
+         c("trabalho", "fundprivado", "ano_enem"))
+
+# Remover variáveis não utilizadas
+censo_enem[, c("iein_co_inscricao", "iequ_questao_47") := NULL]
+
+# Salvar base
+saveRDS(censo_enem, file.path(data_dir, "ceb_egressos_2012.rds"))
+
+##############################
+### CENSO DA EDUCAÇÃO SUPERIOR ###
+
+# Função para processar cada ano do CES
+processar_ces <- function(ano, data_dir) {
+  # Importar dados
+  arquivo <- sprintf("aluno_%s.csv", ano)
+  dados <- fread(file.path(data_dir, arquivo))
+  
+  # Formatar código do aluno
+  dados[, co_aluno := as.character(co_aluno)]
+  
+  # Excluir cursos sequenciais de formação específica
+  dados <- dados[tp_nivel_academico != 2, ]
+  
+  # Eliminar variáveis desnecessárias
+  vars_remover <- c("co_aluno_curso", "tp_cor_raca", "tp_organizacao_academica",
+                    "tp_nivel_academico", "co_area_geral", "co_area_especifica",
+                    "co_area_detalhada", "nu_ano_censo")
+  dados[, (vars_remover) := NULL]
+  
+  # Recodificar variáveis
+  setnames(dados, "co_rotulo", "co_ocde")
+  
+  # Categoria administrativa
+  dados[, categ := ifelse(tp_categoria_administrativa %in% 1:3, 1, 2)]
+  
+  # Turno
+  dados[, turno := tp_turno]
+  dados[tp_turno %in% 1:2, turno := 1]
+  dados[tp_turno == 3, turno := 2]
+  dados[tp_turno == 4, turno := 1]
+  dados[is.na(turno) & tp_modalidade_ensino == 2, turno := 3]
+  dados[, c("tp_turno", "tp_modalidade_ensino") := NULL]
+  
+  # Grau acadêmico
+  dados[is.na(tp_grau_academico), tp_grau_academico := 0]
+  
+  # Renomear variáveis
+  setnames(dados, 
+           c("co_ies", "tp_grau_academico", "tp_situacao", "co_curso"),
+           c("ies", "grau", "sit", "curso"))
+  
+  # Definir labels (fatores)
+  dados[, categ := factor(categ, levels = 1:2, labels = c("Pública", "Privada"))]
+  dados[, grau := factor(grau, levels = 0:3, 
+                         labels = c("NA", "Bacharelado", "Licenciatura", "Tecnológico"))]
+  dados[, turno := factor(turno, levels = 1:3, 
+                          labels = c("Diurno", "Noturno", "EaD"))]
+  dados[, sit := factor(sit, levels = 2:7,
+                        labels = c("Cursando", "Matrícula trancada", "Desvinculado do curso",
+                                   "Transferido para curso da mesma IES", "Formado", "Falecido"))]
+  
+  # Reordenar colunas
+  setcolorder(dados, c("co_aluno", "chave_unica", "categ", "ies", "grau", 
+                       "turno", "curso", "co_ocde", "sit"))
+  
+  # Salvar base
+  output_file <- sprintf("ces_aluno_%s.rds", ano)
+  saveRDS(dados, file.path(data_dir, output_file))
+  
+  return(dados)
+}
+
+# Processar cada ano
+for (ano in c("13", "14", "15", "16", "17")) {
+  assign(paste0("ces_", ano), processar_ces(ano, data_dir))
+}
+
+################################
+### LOOP PARA TRATAMENTO DAS BASES 2013-2017 ###
+
+for (ano in c("13", "14", "15", "16", "17")) {
+  # Carregar dados
+  dados <- get(paste0("ces_", ano))
+  
+  # Reconstruir variável de situação de matrícula
+  levels(dados$sit) <- list("Cursando" = "Cursando", 
+                            "Formado" = "Formado",
+                            "Matrícula trancada" = "Matrícula trancada",
+                            "Desvinculado do curso" = "Desvinculado do curso",
+                            "Transferido para curso da mesma IES" = "Transferido para curso da mesma IES",
+                            "Falecido" = "Falecido")
+  
+  # Analisar duplicações
+  setkey(dados, co_aluno)
+  dup_count <- duplicated(dados, by = "co_aluno")
+  cat("Duplicações em", ano, ":", sum(dup_count), "\n")
+  
+  # Eliminar duplicações completas
+  unique_cols <- c("co_aluno", "ies", "grau", "turno", "curso", "sit")
+  dados <- unique(dados, by = unique_cols)
+  
+  # Verificar duplicações novamente
+  dup_count <- duplicated(dados, by = "co_aluno")
+  cat("Duplicações após limpeza em", ano, ":", sum(dup_count), "\n")
+  
+  # Salvar bases finais
+  output_file <- sprintf("ces_aluno_matching_%s.rds", ano)
+  saveRDS(dados, file.path(data_dir, "2.Bases_finais", output_file))
+}
+

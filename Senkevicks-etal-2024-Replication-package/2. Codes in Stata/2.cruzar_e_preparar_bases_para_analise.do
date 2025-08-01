@@ -236,3 +236,231 @@ export delimited using "${output}\base_para_abrir_em_r.csv", delimiter(";") repl
 
 * Fim da sintaxe
 ***
+
+********* Conversão para o R, por TMancano ************
+
+library(tidyverse)
+library(haven) # Para ler arquivos .dta se necessário
+
+# Definir diretórios
+data_dir <- "inserir caminho das bases do CEB"
+ces_dir <- "inserir caminho das bases do CES"
+output_dir <- "inserir caminho dos produtos"
+
+# Abrir base de egressos 2012
+ceb_egressos <- read_rds(file.path(data_dir, "ceb_egressos_2012.rds")) %>% 
+  filter(!is.na(chave_unica))
+
+###########################################################
+# Cruzamento e limpeza com CES em menor nível de agregação
+
+# Lista de anos para processar
+anos_ces <- c("13", "14", "15", "16", "17")
+
+# Função para carregar e mesclar dados CES
+carregar_e_mesclar <- function(ano) {
+  read_rds(file.path(ces_dir, str_glue("ces_aluno_matching_{ano}.rds"))) %>% 
+    select(-any_of("dupchave")) %>% # Remover coluna de duplicatas se existir
+    rename_with(~ paste0(., "_", ano), everything())
+}
+
+# Mesclar todas as bases CES
+dados_completos <- anos_ces %>% 
+  map(carregar_e_mesclar) %>% 
+  reduce(full_join, by = "chave_unica") %>% 
+  right_join(ceb_egressos, by = "chave_unica")
+
+# Verificar duplicações
+dados_completos <- dados_completos %>% 
+  add_count(chave_unica, name = "dupchave") %>% 
+  mutate(dupchave = dupchave - 1) # Ajuste para contar duplicatas
+
+###########################################################
+# Definir ano de ingresso
+
+dados_completos <- dados_completos %>% 
+  mutate(
+    ingresso = if_else(
+      !is.na(co_aluno_13) | !is.na(co_aluno_14) | !is.na(co_aluno_15) | 
+        !is.na(co_aluno_16) | !is.na(co_aluno_17), 
+      1, 0
+    ),
+    ano_ingresso = case_when(
+      !is.na(co_aluno_17) ~ 2017,
+      !is.na(co_aluno_16) ~ 2016,
+      !is.na(co_aluno_15) ~ 2015,
+      !is.na(co_aluno_14) ~ 2014,
+      !is.na(co_aluno_13) ~ 2013,
+      TRUE ~ NA_real_
+    )
+  )
+
+###########################################################
+# Definir qual edição do Enem usar
+
+# Ajustar notas zero para NA
+dados_completos <- dados_completos %>% 
+  mutate(across(starts_with("media"), ~ na_if(., 0)) %>% 
+  mutate(across(starts_with("participante"), 
+         ~ if_else(is.na(get(str_replace(cur_column(), "participante", "media"))) & 
+           get(str_replace(cur_column(), "participante", "inscrito")) == 1, 
+         0, .))
+
+# Definir Enem anterior ao ingresso
+dados_completos <- dados_completos %>% 
+  mutate(
+    enemingresso = case_when(
+      ano_ingresso == 2013 & participante12 == 1 ~ 2012,
+      ano_ingresso == 2014 & participante13 == 1 ~ 2013,
+      ano_ingresso == 2015 & participante14 == 1 ~ 2014,
+      ano_ingresso == 2016 & participante15 == 1 ~ 2015,
+      ano_ingresso == 2017 & participante16 == 1 ~ 2016,
+      TRUE ~ NA_real_
+    ),
+    ultimoenem = case_when(
+      participante16 == 1 ~ 2016,
+      participante15 == 1 ~ 2015,
+      participante14 == 1 ~ 2014,
+      participante13 == 1 ~ 2013,
+      participante12 == 1 ~ 2012,
+      TRUE ~ NA_real_
+    ),
+    ano_enem = coalesce(enemingresso, ultimoenem)
+  ) %>% 
+  select(-enemingresso, -ultimoenem)
+
+###########################################################
+# Organizar dados do Enem 2012-2016
+
+# Renomear variáveis de escolaridade parental
+dados_completos <- dados_completos %>% 
+  rename_with(~ str_replace(., "escp(\\d{2})_v1", "escp_v1\\1"), 
+              matches("escp\\d{2}_v1"))
+
+# Selecionar variáveis do Enem baseado no ano_enem
+variaveis_enem <- c("rfpc", "media", "fundprivado", "escp", "trabalho")
+
+for (var in variaveis_enem) {
+  dados_completos <- dados_completos %>% 
+    mutate(
+      !!var := case_when(
+        ano_enem == 2012 ~ get(paste0(var, "12")),
+        ano_enem == 2013 ~ get(paste0(var, "13")),
+        ano_enem == 2014 ~ get(paste0(var, "14")),
+        ano_enem == 2015 ~ get(paste0(var, "15")),
+        ano_enem == 2016 ~ get(paste0(var, "16")),
+        TRUE ~ NA_real_
+      ),
+      !!var := if_else(is.na(inscrito) | inscrito == 0, NA_real_, get(var))
+    )
+}
+
+###########################################################
+# Limpar variáveis do CES
+
+variaveis_ces <- c("co_aluno", "categ", "ies", "grau", "turno", "curso", "sit")
+
+for (var in variaveis_ces) {
+  dados_completos <- dados_completos %>% 
+    mutate(
+      !!var := case_when(
+        ano_ingresso == 2013 ~ get(paste0(var, "_13")),
+        ano_ingresso == 2014 ~ get(paste0(var, "_14")),
+        ano_ingresso == 2015 ~ get(paste0(var, "_15")),
+        ano_ingresso == 2016 ~ get(paste0(var, "_16")),
+        ano_ingresso == 2017 ~ get(paste0(var, "_17")),
+        TRUE ~ NA_real_
+      )
+    )
+}
+
+# Remover variáveis por ano e co_aluno
+dados_completos <- dados_completos %>% 
+  select(-matches("_(13|14|15|16|17)$"), -co_aluno) %>% 
+  distinct() %>% 
+  add_count(chave_unica, name = "dupcpf") %>% 
+  mutate(dupcpf = dupcpf - 1)
+
+###########################################################
+# Organizar a base de dados
+
+# Renomear e recodificar variáveis
+dados_completos <- dados_completos %>% 
+  rename(
+    sexo = homem,
+    raca = ppi
+  ) %>% 
+  mutate(
+    trabalho = recode(trabalho, `2` = 1),
+    escp = factor(escp, 
+                 levels = 1:6,
+                 labels = c("Não estudou ou EF1 incompleto", "EF1 completo",
+                            "EF2 completo", "Médio completo", 
+                            "Superior completo", "Pós-Graduação")),
+    sexo = factor(sexo, levels = 0:1, labels = c("Feminino", "Masculino")),
+    raca = factor(raca, levels = 0:1, 
+                 labels = c("Branca/Amarela", "Preta/Parda/Indígena")),
+    across(c(fundprivado, trabalho), ~ factor(., levels = 0:1, labels = c("Não", "Sim")))
+  )
+
+# Criar filtro aleatório
+set.seed(290689)
+dados_completos <- dados_completos %>% 
+  group_by(chave_unica) %>% 
+  mutate(
+    r = runif(n()),
+    filtro_aleatorio = if_else(row_number() == 1, 1L, 0L)
+  ) %>% 
+  ungroup()
+
+###########################################################
+# Filtrar e preparar base final
+
+base_final <- dados_completos %>% 
+  filter(
+    between(idade, 16, 22),
+    filtro_aleatorio == 1
+  ) %>% 
+  mutate(
+    dep_var = case_when(
+      participante == 1 & ingresso == 0 ~ 0L,
+      participante == 1 & ingresso == 1 & categ == "Pública" ~ 1L,
+      participante == 1 & ingresso == 1 & categ == "Privada" ~ 2L,
+      TRUE ~ NA_integer_
+    ),
+    dep_var = factor(dep_var, 
+                    levels = 0:2, 
+                    labels = c("Não ingresso", "Pública", "Privada")),
+    origem_esc = recode(escp,
+                       "Não estudou ou EF1 incompleto" = 0,
+                       "EF1 completo" = 0,
+                       "EF2 completo" = 3,
+                       "Médio completo" = 4,
+                       "Superior completo" = 4,
+                       "Pós-Graduação" = 4),
+    origem_esc = factor(origem_esc,
+                       levels = c(0, 3, 4),
+                       labels = c("Até o Fundamental", "Médio", "Superior ou pós"))
+  ) %>% 
+  rename(
+    cor = raca,
+    desempenho = media,
+    edupar = origem_esc,
+    co_ies = ies,
+    co_turno = turno,
+    co_curso = curso
+  ) %>% 
+  select(
+    chave_unica, dep_var, ano_ingresso, ano_enem, rfpc, desempenho,
+    sexo, cor, idade, edupar, depadm, rural, everything(),
+    -c(regiao, municipio, escola, fundprivado, trabalho, profissional,
+       inscrito, participante, ingresso, dupchave, dupcpf, r, filtro_aleatorio,
+       starts_with("ln_"), escp)
+  ) %>% 
+  filter(!is.na(dep_var)) # Remover casos missing na variável dependente
+
+# Exportar para CSV
+write_csv2(base_final, file.path(output_dir, "base_para_abrir_em_r.csv"))
+
+# Salvar também em RDS para uso posterior
+write_rds(base_final, file.path(output_dir, "base_final.rds"))
