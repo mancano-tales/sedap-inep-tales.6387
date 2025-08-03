@@ -1,3 +1,0 @@
-This folder contains the code related to the first data extraction from the INEP corporate database. Access to this data was granted strictly through the INEP's procedure for accessing protected data. Users should be aware that this code corresponds to the initial extraction phase and is tailored to comply with the specific protocols and confidentiality requirements set by INEP.
-
-As the data is protected, any replication or usage of this code should adhere to INEP's data protection policies and access procedures. For further information on the data access procedure and compliance with data protection regulations, please consult the official INEP guidelines or contact the data access team directly at sedap@inep.gov.br.
