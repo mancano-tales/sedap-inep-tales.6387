@@ -1,19 +1,40 @@
 ---
-title: "Sedap-INEP - Projeto tales.6387"
-format: html
+title: "tales.6387_0_Data_Load_&_Prep"
+format:
+  html:
+    code-tools:
+      source: true
+      toggle: true
+      collapse: false
+      copy: true
+editor: 
+  markdown: 
+    wrap: 72
 ---
 
-Este script tem como objetivo acompanhar, testar e documentar, do lado de fora da sala segura do INEP, o desenvolvimento do código que está sendo elaborado internamente.
+Este script tem como objetivo acompanhar, testar e documentar, do lado
+de fora da sala segura do INEP, o desenvolvimento do código que está
+sendo elaborado internamente.
 
-A intenção é que, caso tudo transcorra como previsto, possamos extrair o script final — atualmente sendo desenvolvido em um documento Quarto dentro da sala — para uso e replicação externa.
+A intenção é que, caso tudo transcorra como previsto, possamos extrair o
+script final — atualmente sendo desenvolvido em um documento Quarto
+dentro da sala — para uso e replicação externa.
 
-Além disso, este documento funciona como um caderno de campo: serve tanto para preparar materiais a serem utilizados dentro da sala quanto para registrar os avanços realizados no ambiente restrito, facilitando o acompanhamento e a reconstrução do trabalho fora dele.
+Além disso, este documento funciona como um caderno de campo: serve
+tanto para preparar materiais a serem utilizados dentro da sala quanto
+para registrar os avanços realizados no ambiente restrito, facilitando o
+acompanhamento e a reconstrução do trabalho fora dele.
 
 # Início do Script
 
-O Script se inicia na sala do Sedap com: 1. Definição do Diretório de Trabalho (especialmente importante pois lá não é possível usar Rproject e temos que salvar os arquivos em pastas específicas ou ele pode ser deletado). Os dados ficam disponíveis via acesso na rede em disco de nome "T:/"
+O Script se inicia na sala do Sedap com: 1. Definição do Diretório de
+Trabalho (especialmente importante pois lá não é possível usar Rproject
+e temos que salvar os arquivos em pastas específicas ou ele pode ser
+deletado). Os dados ficam disponíveis via acesso na rede em disco de
+nome "T:/"
 
-Depis demos que verificar se os pacotes necessário s do tidyverse foram instalados, se não é imporssível ler os bancos de dados CSV
+Depis demos que verificar se os pacotes necessário s do tidyverse foram
+instalados, se não é imporssível ler os bancos de dados CSV
 
 ```{R}
 getwd()
@@ -21,7 +42,9 @@ setwd("T:/")
 installed.packages()
 ```
 
-Os pacotes na sala do INEP não podem ser baixados via CRAN, ao invés disso eles são disponibilziados em arquivos diretamente no computador, que, no entanto, ainda não tive acesso.
+Os pacotes na sala do INEP não podem ser baixados via CRAN, ao invés
+disso eles são disponibilziados em arquivos diretamente no computador,
+que, no entanto, ainda não tive acesso.
 
 ```{R}
 
@@ -32,7 +55,8 @@ library(tidyverse)
 
 ```
 
-Depois de instalar os pacotes podemos finalmente ler as bases de dados usando a função readr
+Depois de instalar os pacotes podemos finalmente ler as bases de dados
+usando a função readr
 
 ```{R}
 ENEM_2010 <- readr::read_delim("1. Bases Enem\ENEM_2010.csv", delim=";", n_max = 0)
@@ -42,17 +66,26 @@ colnames()
 
 ## Tratamento e cruzamento das bases de dados
 
-Após realizar a leitura da primeira base de dados, seja do Censo da Educação Básica (doravante CEB) ou do Censo da Educação Superio (CES) é necessário removar a maioria das colunas (que não tem uso para a pesquisa e aumentam muito o peso do dataset) e realizar o merge através da função *left_join*.
+Após realizar a leitura da primeira base de dados, seja do Censo da
+Educação Básica (doravante CEB) ou do Censo da Educação Superio (CES) é
+necessário removar a maioria das colunas (que não tem uso para a
+pesquisa e aumentam muito o peso do dataset) e realizar o merge através
+da função *left_join*.
 
+C:\
 
 ### Censo Escolar
 
-Vamos iniciar carregando a base do CEB e excluindo as colunas que não nos interessam:
-  
-```{R}
-colnamesCEB_2009 <- readr::read_delim("1. Bases CEB\CEB_2009.csv", delim=";", n_max = 0)
-print(colnamesCEB_2009)
+Vamos iniciar carregando a base do CEB e excluindo as colunas que não
+nos interessam:
 
+```{R}
+CEB_2009 <- readr::read_delim("C:\CENSO_ESCOLAR\CEB_2009.csv", delim=";", n_max = 0)
+print(colnamesCEB_2009)
+VAR_CESCOLAR_2009 <-colnamesCEB_2009
+
+
+#Códifo para diferenciar as colunas
 
 colunas_desejadas <- c("ID_ALUNO", "TP_COR_RACA")
 
@@ -62,11 +95,6 @@ dados <- fread("arquivo.csv", select = colunas_desejadas)
 
 #Essa forma de leitura se repete para todas as outras bases
 ```
-
-
-
-
-
 
 ```{r}
 
@@ -99,17 +127,6 @@ censo_1 <- bas_situacao %>%
 
 ```
 
-
-
-
-
-
-
-
-
-
-  
-  
 ```{R}
 
 merge()
@@ -120,7 +137,6 @@ left_join()
 ```
 
 --- Código Senkevicks
-
 
 ```{r}
 library(tidyverse)
@@ -262,3 +278,60 @@ final_processing <- function(year) {
 walk(c("13", "14", "15", "16", "17"), final_processing)
 ```
 
+library(tidyverse)
+
+# Caminho para a pasta onde estão seus arquivos
+
+pasta \<- "caminho/para/as/bases"
+
+# Lista todos os arquivos .rds
+
+arquivos \<- list.files(pasta, pattern = "\\.rds\$", full.names = TRUE)
+
+# Extrai o ano do nome do arquivo (assumindo que está nos últimos 4 dígitos antes do .rds)
+
+extrair_ano \<- function(nome_arquivo) { str_extract(nome_arquivo,
+"\\d{4}(?=\\.rds\$)") }
+
+# Organiza arquivos por tipo
+
+arquivos_df \<- tibble( caminho = arquivos, ano =
+as.integer(extrair_ano(arquivos)), tipo = case_when(
+str_detect(arquivos, "ensino_medio") \~ "em", str_detect(arquivos,
+"enem") \~ "enem", str_detect(arquivos, "ensino_superior") \~ "es", TRUE
+\~ "outro" ) ) %\>% filter(tipo != "outro")
+
+# Cria função para processar 1 ano base
+
+processar_ano \<- function(ano_base) { \# Carrega base EM em \<-
+arquivos_df %\>% filter(tipo == "em", ano == ano_base) %\>%
+pull(caminho) %\>% read_rds()
+
+\# Junta com Enem do ano, ano+1, ano+2 enem \<- arquivos_df %\>%
+filter(tipo == "enem", ano %in% c(ano_base, ano_base + 1, ano_base + 2))
+%\>% arrange(ano) %\>% mutate(dados = map(caminho, read_rds)) %\>%
+pull(dados) %\>% bind_rows()
+
+em_enem \<- left_join(em, enem, by = "id_pessoa") \# adapte a chave
+
+\# Junta com ES do ano+1, ano+2, ano+3 es \<- arquivos_df %\>%
+filter(tipo == "es", ano %in% c(ano_base + 1, ano_base + 2, ano_base +
+3)) %\>% arrange(ano) %\>% mutate(dados = map(caminho, read_rds)) %\>%
+pull(dados) %\>% bind_rows()
+
+final \<- left_join(em_enem, es, by = "id_pessoa") \# adapte a chave
+final }
+
+# Executa para os anos de 2010 a 2020
+
+anos_base \<- 2010:2020
+
+resultados \<- map(anos_base, processar_ano)
+
+# Opcional: empilhar tudo
+
+resultado_total \<- bind_rows(resultados)
+
+# Você pode salvar o resultado final, por exemplo:
+
+# write_rds(resultado_total, "resultado_completo.rds")

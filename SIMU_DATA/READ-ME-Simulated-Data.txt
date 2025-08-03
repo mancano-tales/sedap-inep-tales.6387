@@ -1,0 +1,11 @@
+PT-BR:
+
+ATENÇÃO: Este conjunto de dados é inteiramente simulado e foi criado com base nos dicionários de dados publicamente disponíveis do INEP. Nenhuma informação real de indivíduos ou instituições está presente neste arquivo. Os dados foram construídos unicamente com o objetivo de testar e desenvolver o código que posteriormente será executado no ambiente seguro de dados do SEDAP/INEP.
+
+Apesar de fictícios, os dados seguem fielmente a estrutura, os formatos e os tipos de variáveis descritos nos dicionários oficiais dos microdados do INEP e conforme acessados na sala segura de dados (SEDAP). Este arquivo não representa, em nenhuma hipótese, os dados reais coletados pelo INEP.
+
+EN:
+
+DISCLAIMER: This dataset is entirely simulated and was created based on the publicly available data dictionaries provided by INEP. No real information about individuals or institutions is included in this file. The data was generated solely for the purpose of testing and developing code that will later be executed within the secure data environment of SEDAP/INEP.
+
+Although fictional, the dataset closely follows the structure, formats, and variable types described in the official INEP microdata dictionaries and as accessed within the secure data environment (SEDAP). Under no circumstances does this file represent the actual data collected by INEP.

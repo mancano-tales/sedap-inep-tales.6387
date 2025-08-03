@@ -3,3 +3,17 @@
 .RData
 .Ruserdata
 "Senkevicks-etal-2024-Replication-package/" 
+"_deprecated/"
+# Arquivos CSV
+*.csv
+Data-Dictionaries/
+
+# Arquivos do Excel
+*.xls
+*.xlsx
+*.xlsm
+*.xlsb
+*.ods
+*.xlt
+*.xltx
+*.xltm
