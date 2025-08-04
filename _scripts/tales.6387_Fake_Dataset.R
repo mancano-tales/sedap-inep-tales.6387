@@ -1,26 +1,138 @@
----
+------------------------------------------------------------------------
 
----
+------------------------------------------------------------------------
 
 Este código é responsável por gerar alguns datasets que vamos usar para ir testando ficticiamente o código principal. A partir dos dicionários de dados disponobilizados pelo INEP, vamos gerar os datasets com poquíssimas observações, apenas para fazer testes de manipulação e testar o nosso código antes de enviar para o SEDAP.
 
+CATALOGO_CESCOLAR_BAS_SITUACAO
+
+Eu quero gerar bancos de dados a partir de um dicionario de dados, quero que o R crie na pasta SIMU_DATA uma pasta que chamará CESCOLAR, como manda a primeira colunas do dicionário chamada BAS_CAT. Depois outra pasta de acordo com a segunda coluna chamada BAS_NAME, Nela eu quero criar diversos arquivos em CSV de uma base de dados que tem uma edição por ano de 2018 a 2020, Cada um desses aquibos tem várias colunas, como representado pela coluna VAR_NAME, cada uma dessas colunas tem informações sobre individuos as regras sobre o que tem nas linhas dos indiciduos estão nas colunas TYPE, que informa sobre o tipo de variavel, TAM que informa sobre o tamaho e RANGE_MIN e RANGE_MAX que limita a variação dos dados que vão ser gerados, pode escrever um código para mim que faça isso?
 
 
-
-```{r}
+```{r Carrega alguns pacotes fundamentais}
 library(tidyverse)
 library(charlatan) 
-```
+library(stringi) 
 
 # para gerar dados falsos
 set.seed(6387)
+```
+
+```{r First Option for }
+# 1. Lê o dicionário de dados (salvo como CSV com separador TAB ou vírgula, ajuste se necessário)
+dict <- readr::read_delim("caminho/para/o/seu/dicionario.csv", delim = "\t", show_col_types = FALSE)
+
+# 2. Transforma em tibble e filtra apenas as variáveis necessárias
+dicionario <- dicionario %>%
+  filter(!is.na(VAR_NAME)) %>%
+  mutate(across(c(RANGE_MIN, RANGE_MAX), as.numeric))
+
+# 3. Parâmetros de simulação
+anos <- 2018:2020
+n <- 1000  # número de registros por ano
+
+# 4. Loop para criar dados simulados por ano
+for (ano in anos) {
+  # Subconjunto do dicionário para o ano
+  dict_ano <- dict %>%
+    filter(FIRST_YEAR <= ano, LAST_YEAR >= ano)
+
+  # Nome das pastas
+  pasta_base <- file.path("SIMU_DATA", dict_ano$BAS_CAT[1], dict_ano$BAS_NAME[1])
+  dir.create(pasta_base, recursive = TRUE, showWarnings = FALSE)
+
+  # Simular os dados
+  dados <- map_dfc(1:nrow(dict_ano), function(i) {
+    var <- dict_ano[i, ]
+    nome <- var$VAR_NAME
+    tipo <- tolower(var$TYPE)
+    min <- var$RANGE_MIN
+    max <- var$RANGE_MAX
+    tam <- var$TAM
+
+    if (tipo == "integer" || tipo == "numeric") {
+      if (!is.na(min) && !is.na(max)) {
+        col <- sample(min:max, n, replace = TRUE)
+      } else {
+        col <- sample(1:100, n, replace = TRUE)
+      }
+    } else if (tipo == "binary") {
+      col <- sample(0:1, n, replace = TRUE)
+    } else if (tipo == "character") {
+      col <- replicate(n, paste0(sample(LETTERS, tam, TRUE), collapse = ""))
+    } else {
+      col <- rep(NA, n)
+    }
+
+    setNames(list(col), nome)
+  })
+
+  # Adiciona coluna do ano
+  if ("NU_ANO" %in% names(dados)) {
+    dados$NU_ANO <- ano
+  }
+
+  # Salva o CSV
+  file_name <- file.path(pasta_base, paste0("base_simulada_", ano, ".csv"))
+  readr::write_csv(dados, file_name)
+}
+
+```
+
+```{python}
+'c`a~a`a~Aa`A~~~~~~Aa~  'c`c`c'c'c`c'cc  
+```
+
+```{python}
+
+```
+
+```{R testando um código tibble usa uma função interessante quero estudar mais esse códigoTó}
+
+#CRIA UMA FUNCAOCH
+criar_variaveis_base <- function(base_cat, base_name, first_year, last_year, var_names) {
+  tibble::tibble(
+    BAS_CAT = base_cat,
+    BAS_NAME = base_name,
+    FIRST_YEAR = first_year,
+    LAST_YEAR = last_year,
+    VAR_NO = paste0("#", seq_along(var_names)),
+    VAR_NAME = var_names
+  )
+}
+
+PIUPIU <- criar_variaveis_base(
+  base_cat = "CESCOLAR",
+  base_name = "CESCOLAR_BAS_SITUACAO",
+  first_year = 2008,
+  last_year = 2020,
+  var_names = c(
+    "NU_ANO",
+    "ID_MATRICULA",
+    "CPF_MASC",
+    "CO_PESSOA_FISICA",
+    "TP_ETAPA_ENSINO",
+    "IN_REGULAR",
+    "ID_TURMA",
+    "CO_ENTIDADE",
+    "CO_ORGAO_REGIONAL",
+    "CO_UF",
+    "CO_MUNICIPIO",
+    "TP_DEPENDENCIA",
+    "TP_SITUACAO",
+    "IN_CONCLUINTE",
+    "IN_TRANSFERIDO"
+  )
+)
+
+```
 
 # Exemplo simples de dicionário
 
 ```{r}
 library(tibble)
 
-variaveis_cescolar <- tibble::tibble(
+Gay <- tibble::tibble(
   BAS_CAT = "CESCOLAR",
   BAS_NAME = "CESCOLAR_BAS_SITUACAO",
   FIRST_YEAR = 2008,
@@ -68,7 +180,118 @@ CESCOLAR\tCESCOLAR_BAS_SITUACAO\t2008\t2020\t#13\tTP_SITUACAO\tSituação de ren
 CESCOLAR\tCESCOLAR_BAS_SITUACAO\t2008\t2020\t#14\tIN_CONCLUINTE\tAluno que tenha sido aprovado...\tbinary\t1\t0\t1\t\"0 - Não\n1 - Sim\"\t1\t\t
 CESCOLAR\tCESCOLAR_BAS_SITUACAO\t2008\t2020\t#15\tIN_TRANSFERIDO\tAluno que foi para outra escola...\tbinary\t1\t0\t1\t\"0 - Não\n1 - Sim\"\t\t\t
 "
+```
 
+```{r Suposedly a working code}
+CATALOGO_CESCOLAR_BAS_SITUACAO <- tibble::tibble(
+  BAS_CAT = rep("CESCOLAR", 15),
+  BAS_NAME = rep("CESCOLAR_BAS_SITUACAO", 15),
+  FIRST_YEAR = rep(2008L, 15),
+  LAST_YEAR = rep(2020L, 15),
+  VAR_NO = 1:15,
+  VAR_NAME = c(
+    "NU_ANO", "ID_MATRICULA", "CPF_MASC", "CO_PESSOA_FISICA", "TP_ETAPA_ENSINO",
+    "IN_REGULAR", "ID_TURMA", "CO_ENTIDADE", "CO_ORGAO_REGIONAL", "CO_UF",
+    "CO_MUNICIPIO", "TP_DEPENDENCIA", "TP_SITUACAO", "IN_CONCLUINTE", "IN_TRANSFERIDO"
+  ),
+  DESCRIPTION = c(
+    "Ano do Censo",
+    "Código único da matrícula",
+    "CPF mascarado no formato char(32)",
+    "Código do aluno (ID_INEP)",
+    "Etapa de ensino da matrícula",
+    "Modo, maneira ou metodologia de ensino correspondente às turmas com etapas de escolarização consecutivas, Creche ao Ensino Médio. Etapas consideradas (nas antigas modalidades 1 ou 2): TP_ETAPA_ENSINO igual a 1,2,4,5,6,7,8,9,10,11,14, 15,16,17,18,19,20,21,41,25,26,27,28,29,30,31, 32,33,34,35,36,37 ou 38.",
+    "Código único da Turma 3",
+    "Código da Escola 3",
+    "Código do Órgão Regional de Ensino",
+    "Código UF da escola",
+    "Código Município da escola",
+    "Dependência Administrativa (Escola)",
+    "Situação de rendimento ou movimento do aluno ao final do ano letivo",
+    "Aluno que tenha sido aprovado e terminado uma etapa final do ensino fundamental, ensino médio ou de educação profissional com emissão de certificado. (etapas: 11,41,27,28,29,32,33,34,37,38,39,40,70,71,73,74,65,67 e 68).",
+    "Aluno que foi para outra escola após a data de referência do Censo Escolar."
+  ),
+  TYPE = c(
+    "integer", "integer", "integer", "integer", "integer",
+    "binary", "integer", "integer", "integer", "integer",
+    "integer", "integer", "integer", "binary", "binary"
+  ),
+  TAM = c(4, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 1, 1, 1),
+  DOM = c(
+    "2008-2020", "0-99", "0-99", "0-99", "1-74",
+    "1=Sim;2=Não;3=Ignorado", NA, NA, NA, NA,
+    NA, "1-4", "2-9", "1=Sim;2=Não;3=Ignorado", "1=Sim;2=Não;3=Ignorado"
+  ),
+  RANGE_MIN = c(2008, 0, 0, 0, 1, 0, NA, NA, NA, NA, NA, 1, 2, 0, 0),
+  RANGE_MAX = c(2020, 99, 99, 99, 74, 1, NA, NA, NA, NA, NA, 4, 9, 1, 1),
+  SELECT = c(1, NA, 1, NA, NA, NA, NA, NA, NA, NA, NA, 1, NA, 1, NA),
+  OBS = rep(NA, 15),
+  SCRIPT = rep(NA, 15)
+)
+variaveis_cescolar <- CATALOGO_CESCOLAR_BAS_SITUACAO
+
+# Número de estudantes simulados por ano
+N_ESTUDANTES <- 20
+
+# Criar contador global de CPF
+CPF_COUNTER <- 0
+
+# Função de geração de variáveis
+VAR_GENERATOR <- function(var_name, tipo, tam, min, max, n) {
+  # Acesso ao contador global
+  if (var_name == "CPF_MASC") {
+    cpf_vals <- seq(from = CPF_COUNTER + 1, length.out = n)
+    assign("CPF_COUNTER", CPF_COUNTER + n, envir = .GlobalEnv)
+    return(cpf_vals)
+  }
+  
+  if (tipo == "integer") {
+    return(sample(min:max, n, replace = TRUE))
+  } else if (tipo == "binary") {
+    return(sample(0:1, n, replace = TRUE))
+  } else if (tipo == "string") {
+    return(stringi::stri_rand_strings(n, tam))
+  } else {
+    return(rep(NA, n))
+  }
+}
+
+# Loop principal
+for (bas_cat in unique(variaveis_cescolar$BAS_CAT)) {
+  sub_df_cat <- variaveis_cescolar %>% filter(BAS_CAT == bas_cat)
+  dir_cat <- file.path("SIMU_DATA", bas_cat)
+  dir.create(dir_cat, recursive = TRUE, showWarnings = FALSE)
+
+  for (bas_name in unique(sub_df_cat$BAS_NAME)) {
+    sub_df_name <- sub_df_cat %>% filter(BAS_NAME == bas_name)
+    dir_name <- file.path(dir_cat, bas_name)
+    dir.create(dir_name, recursive = TRUE, showWarnings = FALSE)
+
+    anos <- sub_df_name$FIRST_YEAR[1]:sub_df_name$LAST_YEAR[1]
+
+    for (ano in anos) {
+      df <- tibble()
+
+      for (i in 1:nrow(sub_df_name)) {
+        row <- sub_df_name[i, ]
+        col_name <- row$VAR_NAME
+        tipo <- row$TYPE
+        tam <- row$TAM
+        min <- suppressWarnings(as.integer(row$RANGE_MIN))
+        max <- suppressWarnings(as.integer(row$RANGE_MAX))
+
+        df[[col_name]] <- VAR_GENERATOR(col_name, tipo, tam, min, max, N_ESTUDANTES)
+      }
+
+      df$ANO_SIMULADO <- ano
+      nome_arquivo <- paste0(bas_name, "_", ano, ".csv")
+      readr::write_csv(df, file.path(dir_name, nome_arquivo))
+    }
+  }
+}
+```
+
+```{r Suposedly a working code}
 # Lê como tibble
 dicionario <- read_tsv(dicionario_str)
 
@@ -100,31 +323,22 @@ CESCOLAR\tCESCOLAR_BAS_SITUACAO\t2008\t2020\t#15\tIN_TRANSFERIDO\tAluno que foi 
 ```
 
 # Função para gerar uma variável com base no dicionário
-simula_var <- function(var, type, domain, n) {
-  if (type == "int") {
-    bounds <- str_split(domain, "-", simplify = TRUE) %>% as.integer()
-    return(sample(seq(bounds[1], bounds[2]), n, replace = TRUE))
-  } else if (type == "factor") {
-    levels <- str_split(domain, ";|,", simplify = TRUE) %>% str_trim()
-    return(sample(levels, n, replace = TRUE))
-  } else if (type == "string") {
-    return(ch_name(n = n)) # nomes aleatórios
-  } else {
-    return(rep(NA, n))
-  }
-}
+
+simula_var \<- function(var, type, domain, n) { if (type == "int") { bounds \<- str_split(domain, "-", simplify = TRUE) %\>% as.integer() return(sample(seq(bounds[1], bounds[2]), n, replace = TRUE)) } else if (type == "factor") { levels \<- str_split(domain, ";\|,", simplify = TRUE) %\>% str_trim() return(sample(levels, n, replace = TRUE)) } else if (type == "string") { return(ch_name(n = n)) \# nomes aleatórios } else { return(rep(NA, n)) } }
 
 # Número de linhas da base simulada
-n <- 1000
+
+n \<- 1000
 
 # Simular todas as variáveis
-dados_simulados <- map2_dfc(dic$var, seq_along(dic$var), ~{
-  col <- simula_var(dic$var[.y], dic$type[.y], dic$domain[.y], n)
-  tibble(!!dic$var[.y] := col)
-})
+
+dados_simulados \<- map2_dfc(dic$var, seq_along(dic$var), \~{ col \<- simula_var(dic$var[.y], dic$type[.y], dic$domain[.y], n)
+  tibble(!!dic$var[.y] := col) })
 
 # Visualizar
+
 glimpse(dados_simulados)
 
 # Salvar
+
 write_csv(dados_simulados, "dados_simulados.csv")
